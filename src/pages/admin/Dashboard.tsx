@@ -1,12 +1,10 @@
 import { useEffect, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { BadgeStatus, Botao, Cartao, IconeBusca, IconeCheck, IconeRelogio, IconeCaixa } from '../../components/ui'
-import { formatarData, mascaraCpf, soDigitos } from '../../lib/format'
-import { supabase } from '../../lib/supabase'
+import { formatarData, mascaraCpf } from '../../lib/format'
+import { api } from '../../lib/api'
 import { STATUS_LABEL, type Order, type OrderStatus } from '../../lib/types'
 import { Titulo } from './Layout'
-
-const POR_PAGINA = 20
 
 interface Resumo {
   em_separacao: number
@@ -24,6 +22,7 @@ export default function Dashboard() {
   const [resumo, setResumo] = useState<Resumo | null>(null)
   const [pedidos, setPedidos] = useState<Order[] | null>(null)
   const [total, setTotal] = useState(0)
+  const [porPagina, setPorPagina] = useState(20)
   const [erro, setErro] = useState<string | null>(null)
 
   const atualizar = (mud: Record<string, string>) => {
@@ -39,40 +38,27 @@ export default function Dashboard() {
   }, [texto]) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
-    supabase.rpc('resumo_dashboard').then(({ data }) => setResumo(data as Resumo))
+    api<Resumo>('dashboard.resumo').then(setResumo, () => {})
   }, [])
 
   useEffect(() => {
     let ativo = true
-    let q = supabase
-      .from('orders')
-      .select('*', { count: 'exact' })
-      .order('created_at', { ascending: false })
-      .range((pagina - 1) * POR_PAGINA, pagina * POR_PAGINA - 1)
-    if (status) q = q.eq('status', status)
-    const termo = busca.trim()
-    if (termo) {
-      const dig = soDigitos(termo)
-      // Remove caracteres especiais da sintaxe `or` do PostgREST.
-      const limpo = termo.replace(/[,()*%\\]/g, ' ').trim()
-      const filtros = [`cliente_nome.ilike.*${limpo}*`]
-      if (dig.length >= 3) filtros.push(`cpf.like.*${dig}*`, `numero.like.*${dig}*`)
-      q = q.or(filtros.join(','))
-    }
-    q.then(({ data, count, error }) => {
-      if (!ativo) return
-      if (error) setErro(error.message)
-      else {
-        setPedidos(data as Order[])
-        setTotal(count ?? 0)
-      }
-    })
+    api<{ pedidos: Order[]; total: number; porPagina: number }>('pedidos.listar', { q: busca, status, pagina }).then(
+      (r) => {
+        if (!ativo) return
+        setErro(null)
+        setPedidos(r.pedidos)
+        setTotal(r.total)
+        setPorPagina(r.porPagina)
+      },
+      (e) => ativo && setErro(e.message),
+    )
     return () => {
       ativo = false
     }
   }, [busca, status, pagina])
 
-  const paginas = Math.max(1, Math.ceil(total / POR_PAGINA))
+  const paginas = Math.max(1, Math.ceil(total / porPagina))
 
   return (
     <>

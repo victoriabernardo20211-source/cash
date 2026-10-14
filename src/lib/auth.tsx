@@ -1,7 +1,6 @@
-import type { Session } from '@supabase/supabase-js'
-import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
+import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react'
 import { Navigate, useLocation } from 'react-router-dom'
-import { supabase } from './supabase'
+import { api } from './api'
 
 export interface Perfil {
   id: string
@@ -11,61 +10,47 @@ export interface Perfil {
 }
 
 interface Ctx {
-  session: Session | null
   perfil: Perfil | null
   carregando: boolean
+  entrar: (email: string, senha: string) => Promise<void>
   sair: () => Promise<void>
 }
 
-const AuthContext = createContext<Ctx>({ session: null, perfil: null, carregando: true, sair: async () => {} })
+const AuthContext = createContext<Ctx>({ perfil: null, carregando: true, entrar: async () => {}, sair: async () => {} })
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [session, setSession] = useState<Session | null | undefined>(undefined)
+  // undefined = ainda verificando a sessão (cookie HttpOnly, só o servidor lê).
   const [perfil, setPerfil] = useState<Perfil | null | undefined>(undefined)
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => setSession(data.session))
-    const { data } = supabase.auth.onAuthStateChange((_e, s) => setSession(s))
-    return () => data.subscription.unsubscribe()
+    api<Perfil | null>('auth.eu').then(setPerfil, () => setPerfil(null))
+    const expirou = () => setPerfil(null)
+    window.addEventListener('sessao-expirada', expirou)
+    return () => window.removeEventListener('sessao-expirada', expirou)
   }, [])
 
-  const uid = session?.user.id
-  useEffect(() => {
-    if (session === undefined) return
-    if (!uid) {
-      setPerfil(null)
-      return
-    }
-    let ativo = true
-    setPerfil(undefined)
-    supabase
-      .from('admin_users')
-      .select('id, nome, email, perfil')
-      .eq('id', uid)
-      .maybeSingle()
-      .then(({ data }) => ativo && setPerfil((data as Perfil | null) ?? null))
-    return () => {
-      ativo = false
-    }
-  }, [uid, session === undefined]) // eslint-disable-line react-hooks/exhaustive-deps
+  const entrar = useCallback(async (email: string, senha: string) => {
+    setPerfil(await api<Perfil>('auth.entrar', { email, senha }))
+  }, [])
 
-  const carregando = session === undefined || perfil === undefined
+  const sair = useCallback(async () => {
+    await api('auth.sair').catch(() => {})
+    setPerfil(null)
+  }, [])
 
-  const sair = async () => {
-    await supabase.auth.signOut()
-  }
-
-  return <AuthContext.Provider value={{ session: session ?? null, perfil: perfil ?? null, carregando, sair }}>{children}</AuthContext.Provider>
+  return (
+    <AuthContext.Provider value={{ perfil: perfil ?? null, carregando: perfil === undefined, entrar, sair }}>{children}</AuthContext.Provider>
+  )
 }
 
 // eslint-disable-next-line react-refresh/only-export-components
 export const useAuth = () => useContext(AuthContext)
 
 export function RequireStaff({ children, soAdmin = false }: { children: ReactNode; soAdmin?: boolean }) {
-  const { session, perfil, carregando } = useAuth()
+  const { perfil, carregando } = useAuth()
   const local = useLocation()
   if (carregando) return <div className="grid min-h-dvh place-items-center text-secundario">Carregando…</div>
-  if (!session || !perfil) return <Navigate to="/admin/login" replace state={{ de: local.pathname }} />
+  if (!perfil) return <Navigate to="/admin/login" replace state={{ de: local.pathname }} />
   if (soAdmin && perfil.perfil !== 'admin')
     return <p className="p-6 text-secundario">Apenas administradores podem acessar esta página.</p>
   return <>{children}</>

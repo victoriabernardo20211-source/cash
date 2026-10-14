@@ -2,7 +2,7 @@ import { useEffect, useState, type ChangeEvent } from 'react'
 import { InicioView, ResultadoView, type PedidoPublico } from '../../components/cliente'
 import { AreaTexto, Aviso, Botao, Campo, Cartao } from '../../components/ui'
 import { useConfig, varsDeCor } from '../../lib/config'
-import { supabase } from '../../lib/supabase'
+import { api } from '../../lib/api'
 import type { AppConfig } from '../../lib/types'
 import { Titulo } from './Layout'
 
@@ -46,30 +46,28 @@ export default function Personalizacao() {
     const arq = e.target.files?.[0]
     e.target.value = ''
     if (!arq) return
-    if (arq.size > 2 * 1024 * 1024) return setMsg({ tipo: 'erro', texto: 'A logo deve ter no máximo 2 MB.' })
-    const ext = arq.name.split('.').pop()?.toLowerCase() || 'png'
-    const caminho = `logo-${Date.now()}.${ext}`
-    const { error } = await supabase.storage.from('branding').upload(caminho, arq, { contentType: arq.type })
-    if (error) return setMsg({ tipo: 'erro', texto: error.message })
-    set('logo_url', supabase.storage.from('branding').getPublicUrl(caminho).data.publicUrl)
+    try {
+      set('logo_url', await logoParaDataUrl(arq))
+    } catch (err) {
+      setMsg({ tipo: 'erro', texto: (err as Error).message })
+    }
   }
 
   const salvar = async () => {
     setSalvando(true)
     setMsg(null)
-    const { error } = await supabase
-      .from('config')
-      .update({
-        app_name: form.app_name, logo_url: form.logo_url, cor_azul: form.cor_azul.toUpperCase(), cor_vermelho: form.cor_vermelho.toUpperCase(),
+    try {
+      await api('config.salvar', {
+        app_name: form.app_name, logo_url: form.logo_url, cor_azul: form.cor_azul, cor_vermelho: form.cor_vermelho,
         txt_saudacao: form.txt_saudacao, txt_instrucao: form.txt_instrucao, txt_botao: form.txt_botao,
         txt_rodape: form.txt_rodape, txt_erro_vazio: form.txt_erro_vazio, formato_chave: form.formato_chave,
       })
-      .eq('id', 1)
-    setSalvando(false)
-    if (error) setMsg({ tipo: 'erro', texto: error.message })
-    else {
       await recarregar()
       setMsg({ tipo: 'ok', texto: 'Personalização salva. O app do cliente já está atualizado.' })
+    } catch (e) {
+      setMsg({ tipo: 'erro', texto: (e as Error).message })
+    } finally {
+      setSalvando(false)
     }
   }
 
@@ -169,4 +167,33 @@ function SeletorCor({ rotulo, valor, onChange }: { rotulo: string; valor: string
       </div>
     </label>
   )
+}
+
+/**
+ * A logo fica guardada na própria tabela `config` como data URL. Imagens
+ * grandes são reduzidas para no máximo 512px no navegador antes de salvar.
+ */
+async function logoParaDataUrl(arq: File): Promise<string> {
+  if (!/^image\/(png|jpeg|webp|svg\+xml)$/.test(arq.type)) throw new Error('Use PNG, JPG, WEBP ou SVG.')
+  const original = await new Promise<string>((ok, falha) => {
+    const r = new FileReader()
+    r.onload = () => ok(r.result as string)
+    r.onerror = () => falha(new Error('Não foi possível ler a imagem.'))
+    r.readAsDataURL(arq)
+  })
+  if (arq.type === 'image/svg+xml') {
+    if (original.length > 400_000) throw new Error('SVG muito grande (máx. 300 KB).')
+    return original
+  }
+  const img = new Image()
+  img.src = original
+  await img.decode()
+  const escala = Math.min(1, 512 / Math.max(img.width, img.height))
+  const canvas = document.createElement('canvas')
+  canvas.width = Math.round(img.width * escala)
+  canvas.height = Math.round(img.height * escala)
+  canvas.getContext('2d')!.drawImage(img, 0, 0, canvas.width, canvas.height)
+  const url = canvas.toDataURL('image/png')
+  if (url.length > 650_000) return canvas.toDataURL('image/webp', 0.85)
+  return url
 }

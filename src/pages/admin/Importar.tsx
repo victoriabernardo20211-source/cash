@@ -1,14 +1,12 @@
 import { useState, type ChangeEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { AreaTexto, Aviso, Botao, Cartao, IconeUpload } from '../../components/ui'
-import { useConfig } from '../../lib/config'
 import { formatarData, mascaraCpf } from '../../lib/format'
 import { gravarPedidos, prepararImportacao, type PedidoPreview } from '../../lib/importar'
 import { parsePedidos } from '../../lib/parser'
 import { Titulo } from './Layout'
 
 export default function Importar() {
-  const { config } = useConfig()
   const navegar = useNavigate()
   const [texto, setTexto] = useState('')
   const [preview, setPreview] = useState<PedidoPreview[] | null>(null)
@@ -34,7 +32,7 @@ export default function Importar() {
     }
     setOcupado(true)
     try {
-      setPreview(await prepararImportacao(pedidos, config.formato_chave))
+      setPreview(await prepararImportacao(pedidos))
     } catch (e) {
       setErro((e as Error).message)
     } finally {

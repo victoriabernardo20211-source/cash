@@ -3,7 +3,7 @@ import { Navigate, useLocation, useNavigate, useSearchParams } from 'react-route
 import { ResultadoView, type PedidoPublico } from '../../components/cliente'
 import { useConfig } from '../../lib/config'
 import { soDigitos } from '../../lib/format'
-import { supabase } from '../../lib/supabase'
+import { api } from '../../lib/api'
 
 export default function Resultado() {
   const { config } = useConfig()
@@ -17,11 +17,10 @@ export default function Resultado() {
   useEffect(() => {
     if (cpf.length !== 11) return
     let ativo = true
-    supabase.rpc('consultar_pedido_por_cpf', { cpf }).then(({ data, error }) => {
-      if (!ativo) return
-      if (error) setErro('Não foi possível consultar agora. Tente novamente em instantes.')
-      else setPedidos((data as PedidoPublico[]) ?? [])
-    })
+    api<PedidoPublico[]>('pedido.consultar', { cpf }).then(
+      (data) => ativo && setPedidos(data ?? []),
+      () => ativo && setErro('Não foi possível consultar agora. Tente novamente em instantes.'),
+    )
     return () => {
       ativo = false
     }

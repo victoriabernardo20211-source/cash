@@ -2,13 +2,15 @@ import { useCallback, useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { Aviso, BadgeStatus, Botao, Cartao, IconeCheck, IconeCopiar, IconeVoltar } from '../../components/ui'
 import { formatarData, formatarDataHora, formatarQtd, mascaraCpf } from '../../lib/format'
-import { supabase } from '../../lib/supabase'
+import { api } from '../../lib/api'
 import { STATUS_LABEL, type Order, type OrderItem, type OrderStatus } from '../../lib/types'
 
 interface Evento {
   id: number
   status: OrderStatus
   created_at: string
+  autor_nome: string | null
+  autor_email: string | null
 }
 
 export default function Pedido() {
@@ -21,15 +23,14 @@ export default function Pedido() {
   const [copiado, setCopiado] = useState(false)
 
   const carregar = useCallback(async () => {
-    const [o, i, e] = await Promise.all([
-      supabase.from('orders').select('*').eq('id', id).maybeSingle(),
-      supabase.from('order_items').select('*').eq('order_id', id).order('posicao'),
-      supabase.from('order_events').select('id, status, created_at').eq('order_id', id).order('created_at', { ascending: false }),
-    ])
-    if (o.error || !o.data) setErro(o.error?.message ?? 'Pedido não encontrado.')
-    setPedido(o.data as Order | null)
-    setItens((i.data as OrderItem[]) ?? [])
-    setEventos((e.data as Evento[]) ?? [])
+    try {
+      const r = await api<{ pedido: Order; itens: OrderItem[]; eventos: Evento[] }>('pedido.obter', { id })
+      setPedido(r.pedido)
+      setItens(r.itens)
+      setEventos(r.eventos)
+    } catch (e) {
+      setErro((e as Error).message)
+    }
   }, [id])
 
   useEffect(() => {
@@ -39,10 +40,15 @@ export default function Pedido() {
   const mudarStatus = async (status: OrderStatus) => {
     if (!pedido || status === pedido.status) return
     setSalvando(true)
-    const { error } = await supabase.from('orders').update({ status }).eq('id', pedido.id)
-    setSalvando(false)
-    if (error) setErro(error.message)
-    else carregar()
+    try {
+      await api('pedido.status', { id: pedido.id, status })
+      setErro(null)
+      await carregar()
+    } catch (e) {
+      setErro((e as Error).message)
+    } finally {
+      setSalvando(false)
+    }
   }
 
   const copiar = async () => {
@@ -135,7 +141,10 @@ export default function Pedido() {
                 <li key={ev.id} className="relative">
                   <span className="absolute top-1.5 -left-[21px] size-2.5 rounded-full bg-azul" />
                   <p className="font-semibold">{STATUS_LABEL[ev.status]}</p>
-                  <p className="text-xs text-secundario">{formatarDataHora(ev.created_at)}</p>
+                  <p className="text-xs text-secundario">
+                    {formatarDataHora(ev.created_at)}
+                    {(ev.autor_nome || ev.autor_email) && ` · ${ev.autor_nome || ev.autor_email}`}
+                  </p>
                 </li>
               ))}
               <li className="relative">

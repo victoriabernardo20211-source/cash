@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react'
-import { supabase } from './supabase'
+import { api } from './api'
 import type { AppConfig } from './types'
 
 export const DEFAULT_CONFIG: AppConfig = {
@@ -40,8 +40,12 @@ export function ConfigProvider({ children }: { children: ReactNode }) {
   const [carregando, setCarregando] = useState(true)
 
   const recarregar = useCallback(async () => {
-    const { data } = await supabase.from('config').select('*').eq('id', 1).maybeSingle()
-    if (data) setConfig({ ...DEFAULT_CONFIG, ...data })
+    try {
+      const data = await api<AppConfig | null>('config.obter')
+      if (data) setConfig({ ...DEFAULT_CONFIG, ...data })
+    } catch {
+      // Sem API (ex.: banco fora do ar): segue com os defaults.
+    }
     setCarregando(false)
   }, [])
 
