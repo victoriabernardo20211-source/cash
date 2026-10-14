@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { Aviso, BadgeStatus, Botao, Cartao, IconeCheck, IconeCopiar, IconeVoltar } from '../../components/ui'
+import { Aviso, BadgeStatus, Botao, Cartao, IconeCheck, IconeCopiar, IconeVoltar, SeletorContato, tempoAteAutoPronto } from '../../components/ui'
 import { formatarData, formatarDataHora, formatarQtd, mascaraCpf } from '../../lib/format'
 import { api } from '../../lib/api'
-import { STATUS_LABEL, type Order, type OrderItem, type OrderStatus } from '../../lib/types'
+import { STATUS_LABEL, type ContatoStatus, type Order, type OrderItem, type OrderStatus } from '../../lib/types'
 
 interface Evento {
   id: number
@@ -15,7 +15,7 @@ interface Evento {
 
 export default function Pedido() {
   const { id } = useParams()
-  const [pedido, setPedido] = useState<Order | null>(null)
+  const [pedido, setPedido] = useState<(Order & { auto_pronto_min?: number }) | null>(null)
   const [itens, setItens] = useState<OrderItem[]>([])
   const [eventos, setEventos] = useState<Evento[]>([])
   const [erro, setErro] = useState<string | null>(null)
@@ -44,6 +44,20 @@ export default function Pedido() {
       await api('pedido.status', { id: pedido.id, status })
       setErro(null)
       await carregar()
+    } catch (e) {
+      setErro((e as Error).message)
+    } finally {
+      setSalvando(false)
+    }
+  }
+
+  const mudarContato = async (contato: ContatoStatus) => {
+    if (!pedido) return
+    setSalvando(true)
+    try {
+      const r = await api<Partial<Order>>('pedido.contato', { id: pedido.id, contato })
+      setPedido({ ...pedido, ...r, contato_em: new Date().toISOString() })
+      setErro(null)
     } catch (e) {
       setErro((e as Error).message)
     } finally {
@@ -83,6 +97,15 @@ export default function Pedido() {
               <dd>{pedido.telefone ? <a className="text-azul hover:underline" href={`tel:${pedido.telefone.replace(/[^\d+]/g, '')}`}>{pedido.telefone}</a> : '—'}</dd>
               <dt className="text-secundario">Retirada</dt><dd>{formatarData(pedido.data_retirada)}</dd>
             </dl>
+            <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-borda pt-4 text-sm">
+              <span className="font-semibold">Contato:</span>
+              <SeletorContato valor={pedido.contato} disabled={salvando} onChange={mudarContato} />
+              {pedido.contato !== 'pendente' && pedido.contato_em && (
+                <span className="text-xs text-secundario">
+                  {pedido.contato_por_nome && `por ${pedido.contato_por_nome} · `}{formatarDataHora(pedido.contato_em)}
+                </span>
+              )}
+            </div>
           </Cartao>
 
           <Cartao className="p-5">
@@ -127,6 +150,9 @@ export default function Pedido() {
             {pedido.status === 'em_separacao' && (
               <Botao className="w-full bg-verde" disabled={salvando} onClick={() => mudarStatus('pronto')}>Marcar como pronto</Botao>
             )}
+            {pedido.status === 'em_separacao' && (
+              <p className="text-xs text-secundario">{tempoAteAutoPronto(pedido.separacao_em, pedido.auto_pronto_min ?? 0)}</p>
+            )}
             {pedido.status === 'pronto' && (
               <Botao className="w-full" disabled={salvando} onClick={() => mudarStatus('retirado')}>
                 <IconeCheck className="size-5" /> Marcar como retirado
@@ -143,7 +169,7 @@ export default function Pedido() {
                   <p className="font-semibold">{STATUS_LABEL[ev.status]}</p>
                   <p className="text-xs text-secundario">
                     {formatarDataHora(ev.created_at)}
-                    {(ev.autor_nome || ev.autor_email) && ` · ${ev.autor_nome || ev.autor_email}`}
+                    {` · ${ev.autor_nome || ev.autor_email || (ev.status === 'pronto' ? 'automático' : 'sistema')}`}
                   </p>
                 </li>
               ))}

@@ -5,6 +5,7 @@
 create extension if not exists pgcrypto;
 
 create type order_status as enum ('em_separacao', 'pronto', 'retirado');
+create type contato_status as enum ('pendente', 'em_atendimento', 'ja_liguei', 'nao_atendeu');
 
 -- config (linha única) ---------------------------------------------------------
 create table config (
@@ -19,6 +20,8 @@ create table config (
   txt_rodape       text not null default 'Dúvidas? Fale com o balcão.',
   txt_erro_vazio   text not null default 'Nenhum pedido encontrado para este CPF.',
   formato_chave    text not null default 'palavra' check (formato_chave in ('palavra', 'codigo')),
+  -- Minutos em separação até o pedido virar "pronto" sozinho (0 = desligado).
+  auto_pronto_min  int not null default 30 check (auto_pronto_min between 0 and 10080),
   mercado_cnpj     text,
   mercado_endereco text,
   mercado_telefone text,
@@ -50,7 +53,11 @@ create table orders (
   palavra_chave text not null unique,
   status        order_status not null default 'em_separacao',
   data_retirada date,
+  separacao_em  timestamptz,
   retirado_em   timestamptz,
+  contato       contato_status not null default 'pendente',
+  contato_por   uuid references admin_users (id) on delete set null,
+  contato_em    timestamptz,
   created_at    timestamptz not null default now(),
   updated_at    timestamptz not null default now()
 );
@@ -88,6 +95,10 @@ begin
     new.retirado_em := now();
   elsif new.status <> 'retirado' then
     new.retirado_em := null;
+  end if;
+  -- Início da separação: base do "pronto automático".
+  if new.status = 'em_separacao' and (tg_op = 'INSERT' or old.status <> 'em_separacao') then
+    new.separacao_em := now();
   end if;
   return new;
 end $$;
