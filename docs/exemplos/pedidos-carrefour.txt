@@ -1,0 +1,132 @@
+#576932179
+
+Souza Lima, Beatriz
+
+ORIGEM
+carrefourbr-Non-food
+
+DESTINO
+CPF: 11122233396
+
++5562999000000
+
+PRODUTOS:
+EANs	Produto	Quantidade	Unidade
+7891000285091	Composto Lácteo Instantâneo com Fibras Ninho Forti+ 750g	2	un
+ENDEREÇO DE ENTREGA
+Oct 14, 2026, 7:00:00 PM
+
+Avenida Deputado Jamel Cecílio 3900, Jardim Goiás, Goiânia, GO, BRA, C.P.: 74810-100
+
+TIPO DE ENTREGA
+Click & Retire (GOS)
+
+Click&Retire_GOS_NAL
+
+ 
+
+#576938536
+
+PEREIRA DOS SANTOS, RAFAEL
+
+ORIGEM
+carrefourbr-Non-food
+
+DESTINO
+CPF: 11122244401
+
++5562999000001
+
+PRODUTOS:
+EANs	Produto	Quantidade	Unidade
+3615004337624	Pneu Westlake Aro 14 185/60R14 82H Z108	2	un
+ENDEREÇO DE ENTREGA
+Oct 14, 2026, 1:00:00 PM
+
+Avenida Deputado Jamel Cecílio 3900, Jardim Goiás, Goiânia, GO, BRA, C.P.: 74810-100
+
+TIPO DE ENTREGA
+Click & Retire (GOS)
+
+Click&Retire_GOS_NAL
+
+ 
+
+#576939895
+
+Almeida, Carla
+
+ORIGEM
+carrefourbr-Non-food
+
+DESTINO
+CPF: 11122255527
+
++5562999000002
+
+PRODUTOS:
+EANs	Produto	Quantidade	Unidade
+7896067222508	Micro-ondas Panasonic de Bancada 34 Litros NN-ST67LWRUN com Dupla Refeição, Antibacteria AG e Porta Inox 220V	1	un
+ENDEREÇO DE ENTREGA
+Oct 16, 2026, 11:00:00 PM
+
+Avenida Deputado Jamel Cecílio 3900, Jardim Goiás, Goiânia, GO, BRA, C.P.: 74810-100
+
+TIPO DE ENTREGA
+Click & Retire (GOS)
+
+Click&Retire_GOS_NAL
+
+ 
+
+#576940342
+
+Rocha Batista, Gustavo
+
+ORIGEM
+carrefourbr-Non-food
+
+DESTINO
+CPF: 11122266642
+
++5562999000003
+
+PRODUTOS:
+EANs	Produto	Quantidade	Unidade
+7897016837545	Tanquinho Colormaq LCS 20 Kg Semi-Automática Branca 220V	1	un
+ENDEREÇO DE ENTREGA
+Oct 14, 2026, 1:00:00 PM
+
+Avenida Deputado Jamel Cecílio 3900, Jardim Goiás, Goiânia, GO, BRA, C.P.: 74810-100
+
+TIPO DE ENTREGA
+Click & Retire (GOS)
+
+Click&Retire_GOS_NAL
+
+ 
+
+#576940480
+
+Nunes, Paula
+
+ORIGEM
+carrefourbr-Non-food
+
+DESTINO
+CPF: 11122277768
+
++5562999000004
+
+PRODUTOS:
+EANs	Produto	Quantidade	Unidade
+3615004337624	Pneu Westlake Aro 14 185/60R14 82H Z108	4	un
+ENDEREÇO DE ENTREGA
+Oct 14, 2026, 1:00:00 PM
+
+Avenida Deputado Jamel Cecílio 3900, Jardim Goiás, Goiânia, GO, BRA, C.P.: 74810-100
+
+TIPO DE ENTREGA
+Click & Retire (GOS)
+
+Click&Retire_GOS_NAL

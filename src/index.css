@@ -1,0 +1,45 @@
+@import 'tailwindcss';
+
+/*
+ * Tokens visuais (SPEC §2). Os defaults ficam aqui; azul e vermelho são
+ * sobrescritos em runtime a partir da tabela `config` (ver ConfigProvider).
+ */
+:root {
+  --azul: #254f9b;
+  --vermelho: #c20016;
+  --verde: #0e8a4f;
+  --bg: #f4f6fa;
+  --card: #ffffff;
+  --texto: #1a1a1a;
+  --secundario: #6b7280;
+  --borda: #e6e9f0;
+}
+
+@theme inline {
+  --color-azul: var(--azul);
+  --color-vermelho: var(--vermelho);
+  --color-verde: var(--verde);
+  --color-bg: var(--bg);
+  --color-card: var(--card);
+  --color-texto: var(--texto);
+  --color-secundario: var(--secundario);
+  --color-borda: var(--borda);
+
+  --color-separacao-bg: #eaf0fb;
+  --color-separacao-fg: #254f9b;
+  --color-pronto-bg: #e3f4ea;
+  --color-pronto-fg: #0c7a44;
+  --color-retirado-bg: #f0f2f7;
+  --color-retirado-fg: #6b7280;
+
+  --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  --font-chave: 'Space Grotesk', 'Plus Jakarta Sans', sans-serif;
+
+  --radius-card: 16px;
+  --radius-campo: 12px;
+  --shadow-suave: 0 1px 2px rgb(16 24 40 / 0.04), 0 4px 16px rgb(16 24 40 / 0.06);
+}
+
+body {
+  @apply bg-bg font-sans text-texto antialiased;
+}
