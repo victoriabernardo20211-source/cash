@@ -49,7 +49,7 @@ export default function Personalizacao() {
     if (arq.size > 2 * 1024 * 1024) return setMsg({ tipo: 'erro', texto: 'A logo deve ter no máximo 2 MB.' })
     const ext = arq.name.split('.').pop()?.toLowerCase() || 'png'
     const caminho = `logo-${Date.now()}.${ext}`
-    const { error } = await supabase.storage.from('branding').upload(caminho, arq, { upsert: true, contentType: arq.type })
+    const { error } = await supabase.storage.from('branding').upload(caminho, arq, { contentType: arq.type })
     if (error) return setMsg({ tipo: 'erro', texto: error.message })
     set('logo_url', supabase.storage.from('branding').getPublicUrl(caminho).data.publicUrl)
   }
