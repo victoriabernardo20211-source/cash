@@ -7,7 +7,7 @@
  *      Pedido: 10482 / Cliente: … / CPF: … / Telefone: … / Produtos: / - Nome | 2 un / Retirada: 15/10/2026
  *
  * 2. Export do Carrefour — cada bloco começa com `#<número>`:
- *      #576932179 / "Sobrenome, Nome" / CPF: 02394355166 / +5562999195415 /
+ *      #576932179 / "Sobrenome, Nome" / CPF: 11122233396 / +5562999000000 /
  *      PRODUTOS: + tabela separada por TAB (EAN, Produto, Quantidade, Unidade) /
  *      data "Oct 14, 2026, 7:00:00 PM"
  */
@@ -57,7 +57,7 @@ function validaData(a: number, m: number, d: number): string | null {
   return `${a}-${pad(m)}-${pad(d)}`
 }
 
-/** "Moreira da Silva, Daniele" → "Daniele Moreira da Silva" */
+/** "Souza Lima, Beatriz" → "Beatriz Souza Lima" */
 export function normalizaNome(nome: string): string {
   const n = nome.trim().replace(/\s+/g, ' ')
   const partes = n.split(',').map((p) => p.trim()).filter(Boolean)

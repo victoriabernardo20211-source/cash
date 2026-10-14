@@ -46,9 +46,9 @@ describe('parsePedidos — export Carrefour', () => {
   it('lê o primeiro pedido', () => {
     expect(pedidos[0]).toMatchObject({
       numero: '576932179',
-      cliente_nome: 'Daniele Adriane Moreira da Silva',
-      cpf: '02394355166',
-      telefone: '+5562999195415',
+      cliente_nome: 'Beatriz Souza Lima',
+      cpf: '11122233396',
+      telefone: '+5562999000000',
       data_retirada: '2026-10-14',
     })
     expect(pedidos[0].itens).toEqual([
@@ -56,7 +56,7 @@ describe('parsePedidos — export Carrefour', () => {
     ])
   })
   it('capitaliza nome em caixa alta', () => {
-    expect(pedidos[1].cliente_nome).toBe('Celio Faustino da Silva')
+    expect(pedidos[1].cliente_nome).toBe('Rafael Pereira dos Santos')
   })
 })
 
@@ -78,7 +78,7 @@ describe('gerarPalavraChave', () => {
     const geradas = Array.from({ length: 2000 }, () => gerarPalavraChave(usadas))
     expect(new Set(geradas).size).toBe(2000)
     expect(geradas).not.toContain('GIRASSOL 42')
-    expect(geradas[0]).toMatch(/^[A-Z]+ [1-9]\d$/)
+    expect(geradas[0]).toMatch(/^\p{Lu}+ [1-9]\d$/u)
   })
   it('formato código', () => expect(gerarPalavraChave(new Set(), 'codigo')).toMatch(/^[A-Z2-9]{4}$/))
 })

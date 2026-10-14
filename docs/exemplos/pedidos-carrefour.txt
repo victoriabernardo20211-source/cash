@@ -1,14 +1,14 @@
 #576932179
 
-Adriane Moreira da Silva, Daniele
+Souza Lima, Beatriz
 
 ORIGEM
 carrefourbr-Non-food
 
 DESTINO
-CPF: 02394355166
+CPF: 11122233396
 
-+5562999195415
++5562999000000
 
 PRODUTOS:
 EANs	Produto	Quantidade	Unidade
@@ -27,15 +27,15 @@ Click&Retire_GOS_NAL
 
 #576938536
 
-FAUSTINO DA SILVA, CELIO
+PEREIRA DOS SANTOS, RAFAEL
 
 ORIGEM
 carrefourbr-Non-food
 
 DESTINO
-CPF: 93036671153
+CPF: 11122244401
 
-+5562999118990
++5562999000001
 
 PRODUTOS:
 EANs	Produto	Quantidade	Unidade
@@ -54,15 +54,15 @@ Click&Retire_GOS_NAL
 
 #576939895
 
-Martins, Joao
+Almeida, Carla
 
 ORIGEM
 carrefourbr-Non-food
 
 DESTINO
-CPF: 00742545105
+CPF: 11122255527
 
-+5562998220306
++5562999000002
 
 PRODUTOS:
 EANs	Produto	Quantidade	Unidade
@@ -81,15 +81,15 @@ Click&Retire_GOS_NAL
 
 #576940342
 
-Antonio De Moraes Teixeira, Felipe
+Rocha Batista, Gustavo
 
 ORIGEM
 carrefourbr-Non-food
 
 DESTINO
-CPF: 02947604156
+CPF: 11122266642
 
-+5562991188159
++5562999000003
 
 PRODUTOS:
 EANs	Produto	Quantidade	Unidade
@@ -108,15 +108,15 @@ Click&Retire_GOS_NAL
 
 #576940480
 
-Souto, Jarco
+Nunes, Paula
 
 ORIGEM
 carrefourbr-Non-food
 
 DESTINO
-CPF: 85495158172
+CPF: 11122277768
 
-+5562984785050
++5562999000004
 
 PRODUTOS:
 EANs	Produto	Quantidade	Unidade

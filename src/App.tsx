@@ -1,23 +1,34 @@
-import { Route, Routes } from 'react-router-dom'
-
-function EmBreve({ titulo }: { titulo: string }) {
-  return (
-    <main className="mx-auto flex min-h-dvh max-w-md items-center justify-center p-4">
-      <div className="rounded-card bg-card p-6 text-center shadow-suave">
-        <h1 className="text-xl font-extrabold text-azul">{titulo}</h1>
-        <p className="mt-2 text-sm text-secundario">Tela em construção.</p>
-      </div>
-    </main>
-  )
-}
+import { Navigate, Route, Routes } from 'react-router-dom'
+import { AuthProvider, RequireStaff } from './lib/auth'
+import { ConfigProvider } from './lib/config'
+import Inicio from './pages/cliente/Inicio'
+import Resultado from './pages/cliente/Resultado'
+import Configuracoes from './pages/admin/Configuracoes'
+import Dashboard from './pages/admin/Dashboard'
+import Importar from './pages/admin/Importar'
+import AdminLayout from './pages/admin/Layout'
+import Login from './pages/admin/Login'
+import Pedido from './pages/admin/Pedido'
+import Personalizacao from './pages/admin/Personalizacao'
 
 export default function App() {
   return (
-    <Routes>
-      <Route path="/" element={<EmBreve titulo="Início" />} />
-      <Route path="/pedido" element={<EmBreve titulo="Resultado" />} />
-      <Route path="/admin/login" element={<EmBreve titulo="Login" />} />
-      <Route path="/admin/*" element={<EmBreve titulo="Painel" />} />
-    </Routes>
+    <ConfigProvider>
+      <AuthProvider>
+        <Routes>
+          <Route path="/" element={<Inicio />} />
+          <Route path="/pedido" element={<Resultado />} />
+          <Route path="/admin/login" element={<Login />} />
+          <Route path="/admin" element={<RequireStaff><AdminLayout /></RequireStaff>}>
+            <Route index element={<Dashboard />} />
+            <Route path="importar" element={<Importar />} />
+            <Route path="pedido/:id" element={<Pedido />} />
+            <Route path="personalizacao" element={<RequireStaff soAdmin><Personalizacao /></RequireStaff>} />
+            <Route path="configuracoes" element={<RequireStaff soAdmin><Configuracoes /></RequireStaff>} />
+          </Route>
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </AuthProvider>
+    </ConfigProvider>
   )
 }
