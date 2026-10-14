@@ -19,12 +19,15 @@ export interface ParsedItem {
   unidade: string
 }
 
+export type Canal = 'click_retire' | '99food' | 'ifood' | 'outro'
+
 export interface ParsedOrder {
   numero: string
   cliente_nome: string
   cpf: string
   telefone: string | null
   data_retirada: string | null // yyyy-mm-dd
+  canal: Canal
   itens: ParsedItem[]
   erros: string[]
 }
@@ -77,12 +80,25 @@ function parseQtdUnidade(s: string): { quantidade: number; unidade: string } | n
   return { quantidade: Number(m[1].replace(',', '.')), unidade: (m[2] || 'un').toLowerCase() }
 }
 
+/**
+ * Identifica o canal pelo texto do bloco (ex.: "TIPO DE ENTREGA").
+ * iFood vem antes de Click & Retire porque o iFood aparece como
+ * "MKTP OUT - IFOOD CLICK RETIRE".
+ */
+export function detectarCanal(texto: string): Canal {
+  const t = texto.toUpperCase().replace(/\s+/g, ' ')
+  if (/\bI ?FOOD\b/.test(t)) return 'ifood'
+  if (/\b99 ?FOOD\b/.test(t)) return '99food'
+  if (/CLICK ?(&|E)? ?RETIRE/.test(t)) return 'click_retire'
+  return 'outro'
+}
+
 function parseItem(linha: string): ParsedItem | null {
   // Tabela separada por TAB: EAN, Produto, Quantidade, Unidade
   if (linha.includes('\t')) {
     const cols = linha.split('\t').map((c) => c.trim())
     if (cols.length >= 3) {
-      const temEan = /^\d{8,14}$/.test(cols[0])
+      const temEan = cols.length >= 4 && /^\d{1,14}$/.test(cols[0])
       const [ean, nome, qtd, un] = temEan ? cols : [null, ...cols]
       const q = parseQtdUnidade(`${qtd ?? ''} ${un ?? ''}`.trim())
       if (nome && q) return { ean: ean ?? null, nome, ...q }
@@ -131,6 +147,7 @@ export function parsePedidos(texto: string): ParsedOrder[] {
       cpf: '',
       telefone: null,
       data_retirada: null,
+      canal: detectarCanal(linhas.join('\n')),
       itens: [],
       erros: [],
     }
@@ -149,6 +166,7 @@ export function parsePedidos(texto: string): ParsedOrder[] {
       if (chave === 'cliente') { p.cliente_nome = normalizaNome(valor); emProdutos = false; continue }
       if (chave === 'cpf') { p.cpf = soDigitos(valor); emProdutos = false; continue }
       if (chave === 'telefone') { p.telefone = valor || null; emProdutos = false; continue }
+      if (chave === 'canal') { const c = detectarCanal(valor); if (c !== 'outro') p.canal = c; continue }
       if (chave === 'retirada') { p.data_retirada = parseData(valor); if (!p.data_retirada) p.erros.push(`Data inválida: "${valor}"`); emProdutos = false; continue }
       if (SECOES.test(linha)) { emProdutos = false; continue }
 
@@ -161,7 +179,7 @@ export function parsePedidos(texto: string): ParsedOrder[] {
 
       // Campos sem prefixo (formato Carrefour)
       if (!p.data_retirada && parseData(linha)) { p.data_retirada = parseData(linha); continue }
-      if (!p.telefone && /^\+?[\d\s().-]{10,}$/.test(linha) && soDigitos(linha).length >= 10) { p.telefone = linha; continue }
+      if (!p.telefone && /^\+?[\d\s().-]{8,}$/.test(linha) && soDigitos(linha).length >= 8) { p.telefone = linha; continue }
       if (!nomeSolto && !p.cpf && /[A-Za-zÀ-ú]/.test(linha)) nomeSolto = linha
     }
 

@@ -1,4 +1,13 @@
 export type OrderStatus = 'em_separacao' | 'pronto' | 'retirado'
+export type Canal = 'click_retire' | '99food' | 'ifood' | 'outro'
+
+export const CANAL_LABEL: Record<Canal, string> = {
+  click_retire: 'Click & Retire',
+  '99food': '99Food',
+  ifood: 'iFood',
+  outro: 'Outro',
+}
+
 export type ContatoStatus = 'pendente' | 'em_atendimento' | 'ja_liguei' | 'nao_atendeu'
 
 export const CONTATO_LABEL: Record<ContatoStatus, string> = {
@@ -54,6 +63,7 @@ export interface Order {
   status: OrderStatus
   data_retirada: string | null
   separacao_em: string | null
+  canal: Canal
   contato: ContatoStatus
   contato_em: string | null
   contato_por_nome: string | null

@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { Aviso, BadgeStatus, Botao, Cartao, IconeCheck, IconeCopiar, IconeVoltar, SeletorContato, tempoAteAutoPronto } from '../../components/ui'
+import { Aviso, BadgeStatus, Botao, Cartao, IconeCheck, IconeCopiar, IconeVoltar, SeletorCanal, SeletorContato, tempoAteAutoPronto } from '../../components/ui'
 import { formatarData, formatarDataHora, formatarQtd, mascaraCpf } from '../../lib/format'
 import { api } from '../../lib/api'
-import { STATUS_LABEL, type ContatoStatus, type Order, type OrderItem, type OrderStatus } from '../../lib/types'
+import { STATUS_LABEL, type Canal, type ContatoStatus, type Order, type OrderItem, type OrderStatus } from '../../lib/types'
 
 interface Evento {
   id: number
@@ -51,6 +51,16 @@ export default function Pedido() {
     }
   }
 
+  const mudarCanal = async (canal: Canal) => {
+    if (!pedido) return
+    try {
+      await api('pedido.canal', { id: pedido.id, canal })
+      setPedido({ ...pedido, canal })
+    } catch (e) {
+      setErro((e as Error).message)
+    }
+  }
+
   const mudarContato = async (contato: ContatoStatus) => {
     if (!pedido) return
     setSalvando(true)
@@ -83,6 +93,7 @@ export default function Pedido() {
       <div className="mb-6 flex flex-wrap items-center gap-3">
         <h1 className="text-2xl font-extrabold">Pedido #{pedido.numero}</h1>
         <BadgeStatus status={pedido.status} />
+        <SeletorCanal valor={pedido.canal} onChange={mudarCanal} />
       </div>
       {erro && <div className="mb-4"><Aviso>{erro}</Aviso></div>}
 
