@@ -1,6 +1,6 @@
 import { useState, type ChangeEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { AreaTexto, Aviso, Botao, Cartao, IconeUpload } from '../../components/ui'
+import { AreaTexto, Aviso, BadgeCanal, Botao, Cartao, IconeUpload } from '../../components/ui'
 import { formatarData, mascaraCpf } from '../../lib/format'
 import { gravarPedidos, prepararImportacao, type PedidoPreview } from '../../lib/importar'
 import { parsePedidos } from '../../lib/parser'
@@ -104,9 +104,12 @@ export default function Importar() {
           </div>
           <ul className="divide-y divide-borda">
             {preview.map((p, i) => (
-              <li key={i} className={`grid gap-1 p-4 text-sm md:grid-cols-[110px_1fr_140px_70px_100px_150px] md:items-center md:gap-3 ${p.erros.length ? 'bg-vermelho/5' : ''}`}>
+              <li key={i} className={`grid gap-1 p-4 text-sm md:grid-cols-[110px_1fr_130px_70px_95px_150px] md:items-center md:gap-3 ${p.erros.length ? 'bg-vermelho/5' : ''}`}>
                 <span className="font-semibold">#{p.numero || '—'}{p.existente && <span className="ml-1 text-xs font-normal text-secundario">(atualiza)</span>}</span>
-                <span className="truncate">{p.cliente_nome || '—'}</span>
+                <span className="flex min-w-0 items-center gap-2">
+                  <span className="truncate">{p.cliente_nome || '—'}</span>
+                  <BadgeCanal canal={p.canal} />
+                </span>
                 <span className="text-secundario">{p.cpf.length === 11 ? mascaraCpf(p.cpf) : p.cpf || '—'}</span>
                 <span className="text-secundario">{p.itens.length} {p.itens.length === 1 ? 'item' : 'itens'}</span>
                 <span>{formatarData(p.data_retirada)}</span>

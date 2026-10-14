@@ -1,5 +1,5 @@
 import type { ButtonHTMLAttributes, InputHTMLAttributes, ReactNode, SVGProps } from 'react'
-import { CONTATO_LABEL, STATUS_LABEL, type ContatoStatus, type OrderStatus } from '../lib/types'
+import { CANAL_LABEL, CONTATO_LABEL, STATUS_LABEL, type Canal, type ContatoStatus, type OrderStatus } from '../lib/types'
 
 const cx = (...c: (string | false | null | undefined)[]) => c.filter(Boolean).join(' ')
 
@@ -90,6 +90,40 @@ export function BadgeStatus({ status, className }: { status: OrderStatus; classN
   )
 }
 
+export const CANAL_COR: Record<Canal, string> = {
+  click_retire: 'border-azul/30 bg-separacao-bg text-azul',
+  '99food': 'border-yellow-400 bg-yellow-300 text-neutral-900',
+  ifood: 'border-[#EA1D2C] bg-[#EA1D2C] text-white',
+  outro: 'border-borda bg-card text-secundario',
+}
+
+const SETA = "bg-[length:12px] bg-[right_6px_center] bg-no-repeat bg-[url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='3'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E\")]"
+
+export function BadgeCanal({ canal }: { canal: Canal }) {
+  return <span className={cx('inline-flex rounded-full border px-2.5 py-1 text-xs font-bold whitespace-nowrap', CANAL_COR[canal])}>{CANAL_LABEL[canal]}</span>
+}
+
+/** Tarja do canal (Click & Retire / 99Food / iFood), com troca manual. */
+export function SeletorCanal({ valor, onChange, disabled }: { valor: Canal; onChange: (v: Canal) => void; disabled?: boolean }) {
+  return (
+    <select
+      value={valor}
+      disabled={disabled}
+      onChange={(e) => onChange(e.target.value as Canal)}
+      aria-label="Canal do pedido"
+      className={cx(
+        'cursor-pointer appearance-none rounded-full border py-1 pr-6 pl-2.5 text-xs font-bold outline-none focus:ring-2 focus:ring-azul/30 disabled:cursor-wait disabled:opacity-60',
+        SETA,
+        CANAL_COR[valor],
+      )}
+    >
+      {(Object.keys(CANAL_LABEL) as Canal[]).map((c) => (
+        <option key={c} value={c} className="bg-white text-neutral-900">{CANAL_LABEL[c]}</option>
+      ))}
+    </select>
+  )
+}
+
 const CONTATO_COR: Record<ContatoStatus, string> = {
   pendente: 'border-borda bg-card text-secundario',
   em_atendimento: 'border-amber-300 bg-amber-100 text-amber-800',
@@ -119,7 +153,7 @@ export function SeletorContato({
         aria-label="Situação do contato com o cliente"
         className={cx(
           'cursor-pointer appearance-none rounded-full border py-1 pr-6 pl-2.5 text-xs font-bold uppercase outline-none focus:ring-2 focus:ring-azul/30 disabled:cursor-wait disabled:opacity-60',
-          "bg-[length:12px] bg-[right_6px_center] bg-no-repeat bg-[url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='3'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E\")]",
+          SETA,
           CONTATO_COR[valor],
         )}
       >
@@ -135,7 +169,7 @@ export function SeletorContato({
 export function tempoAteAutoPronto(separacaoEm: string | null, minutos: number, agora = Date.now()): string | null {
   if (!separacaoEm || minutos <= 0) return null
   const resta = Math.ceil((new Date(separacaoEm).getTime() + minutos * 60_000 - agora) / 60_000)
-  return resta > 0 ? `pronto automático em ${resta} min` : 'ficando pronto…'
+  return resta > 0 ? `pronto em ${resta} min` : 'ficando pronto…'
 }
 
 export function Marca({ nome, logo, claro = false }: { nome: string; logo: string | null; claro?: boolean }) {

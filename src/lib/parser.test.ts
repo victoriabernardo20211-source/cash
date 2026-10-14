@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
-import { normalizaNome, parseData, parsePedidos } from './parser'
+import { detectarCanal, normalizaNome, parseData, parsePedidos } from './parser'
 import { gerarPalavraChave } from './palavraChave'
 
 const SPEC = `#
@@ -81,4 +81,43 @@ describe('gerarPalavraChave', () => {
     expect(geradas[0]).toMatch(/^\p{Lu}+ [1-9]\d$/u)
   })
   it('formato código', () => expect(gerarPalavraChave(new Set(), 'codigo')).toMatch(/^[A-Z2-9]{4}$/))
+})
+
+describe('canal e variações do export', () => {
+  const bloco = (tipo: string, extra = '') => `#123
+Silva, Ana
+
+DESTINO
+CPF: 11122233396
+
+40202499
+
+PRODUTOS:
+EANs\tProduto\tQuantidade\tUnidade
+7892012003000\tFrutas Prático Amora 400 g\t1\tun
+8891\tManga Palmer Carrefour Aprox. 500g\t4\tkg${extra}
+ENDEREÇO DE ENTREGA
+Oct 12, 2026, 9:35:35 PM
+
+TIPO DE ENTREGA
+${tipo}
+`
+  it('detecta o canal pelo tipo de entrega', () => {
+    expect(parsePedidos(bloco('Click & Retire (GOS)\n\nClick&Retire_GOS_NAL'))[0].canal).toBe('click_retire')
+    expect(parsePedidos(bloco('vtex:fob_99_1896_marketplaceout_1\n\nMKTP OUT 99 FOOD DELIVERY HBT'))[0].canal).toBe('99food')
+    expect(parsePedidos(bloco('vtex:fob_126RET_marketplaceout_1\n\nMKTP OUT - IFOOD CLICK RETIRE - RETIRADA TBE'))[0].canal).toBe('ifood')
+    expect(detectarCanal('Entrega normal')).toBe('outro')
+  })
+  it('aceita EAN curto e quantidade em kg', () => {
+    const [p] = parsePedidos(bloco('Click & Retire'))
+    expect(p.itens[1]).toEqual({ ean: '8891', nome: 'Manga Palmer Carrefour Aprox. 500g', quantidade: 4, unidade: 'kg' })
+    expect(p.erros).toEqual([])
+  })
+  it('aceita telefone de 8 dígitos', () => {
+    expect(parsePedidos(bloco('Click & Retire'))[0].telefone).toBe('40202499')
+  })
+  it('exemplo existente é Click & Retire', () => {
+    const txt = readFileSync(new URL('../../docs/exemplos/pedidos-carrefour.txt', import.meta.url), 'utf8')
+    expect(parsePedidos(txt).map((p) => p.canal)).toEqual(Array(5).fill('click_retire'))
+  })
 })

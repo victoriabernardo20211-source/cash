@@ -33,6 +33,7 @@ type Rota = { acesso: 'publico' | 'equipe' | 'admin'; fn: (a: Args, ctx: Context
 
 const STATUS = ['em_separacao', 'pronto', 'retirado'] as const
 const CONTATO = ['pendente', 'em_atendimento', 'ja_liguei', 'nao_atendeu'] as const
+const CANAL = ['click_retire', '99food', 'ifood', 'outro'] as const
 const HEX = /^#[0-9a-f]{6}$/i
 const CAMPOS_CONFIG = [
   'app_name', 'logo_url', 'cor_azul', 'cor_vermelho', 'txt_saudacao', 'txt_instrucao', 'txt_botao', 'txt_rodape', 'txt_erro_vazio',
@@ -163,6 +164,10 @@ export const ROTAS: Record<string, Rota> = {
         params.push(a.status)
         filtros.push(`o.status = $${params.length}`)
       }
+      if (typeof a.canal === 'string' && (CANAL as readonly string[]).includes(a.canal)) {
+        params.push(a.canal)
+        filtros.push(`o.canal = $${params.length}`)
+      }
       if (typeof a.contato === 'string' && (CONTATO as readonly string[]).includes(a.contato)) {
         params.push(a.contato)
         filtros.push(`o.contato = $${params.length}`)
@@ -181,7 +186,7 @@ export const ROTAS: Record<string, Rota> = {
       const where = filtros.length ? `where ${filtros.join(' and ')}` : ''
       const { rows } = await db().query(
         `select o.id, o.numero, o.cliente_nome, o.cpf, o.status, to_char(o.data_retirada, 'YYYY-MM-DD') data_retirada,
-                o.separacao_em, o.contato, o.contato_em, coalesce(nullif(u.nome, ''), u.email) contato_por_nome, count(*) over()::int total
+                o.separacao_em, o.canal, o.contato, o.contato_em, coalesce(nullif(u.nome, ''), u.email) contato_por_nome, count(*) over()::int total
            from orders o left join admin_users u on u.id = o.contato_por ${where} order by o.created_at desc limit ${porPagina} offset ${(pagina - 1) * porPagina}`,
         params,
       )
@@ -224,6 +229,18 @@ export const ROTAS: Record<string, Rota> = {
         if (!r.rowCount) throw new ErroApi(404, 'Pedido não encontrado.')
         return true
       })
+    },
+  },
+
+  /** Canal do pedido (Click & Retire / 99Food / iFood), ajustável pelo admin. */
+  'pedido.canal': {
+    acesso: 'equipe',
+    fn: async (a) => {
+      const canal = texto(a.canal, 'canal', 20)
+      if (!(CANAL as readonly string[]).includes(canal)) throw new ErroApi(400, 'Canal inválido.')
+      const r = await db().query('update orders set canal = $2 where id = $1', [uuid(a.id, 'Pedido não encontrado.'), canal])
+      if (!r.rowCount) throw new ErroApi(404, 'Pedido não encontrado.')
+      return { canal }
     },
   },
 
@@ -273,6 +290,7 @@ export const ROTAS: Record<string, Rota> = {
           telefone: opcional(p.telefone, 'telefone', 40),
           data_retirada: /^\d{4}-\d{2}-\d{2}$/.test(String(p.data_retirada)) ? String(p.data_retirada) : null,
           palavra_chave: texto(p.palavra_chave, 'palavra_chave', 40).trim(),
+          canal: (CANAL as readonly string[]).includes(String(p.canal)) ? String(p.canal) : 'outro',
           itens: (p.itens as Args[]).slice(0, 500).map((it) => ({
             ean: opcional(it.ean, 'ean', 20),
             nome: texto(it.nome, 'nome', 300),
@@ -287,12 +305,14 @@ export const ROTAS: Record<string, Rota> = {
           // status fica de fora do update: reimportar não regride o status.
           // Palavra-chave de pedido existente é mantida.
           const { rows } = await c.query(
-            `insert into orders (numero, cliente_nome, cpf, telefone, data_retirada, palavra_chave)
-             values ($1, $2, $3, $4, $5, $6)
+            `insert into orders (numero, cliente_nome, cpf, telefone, data_retirada, palavra_chave, canal)
+             values ($1, $2, $3, $4, $5, $6, $7)
              on conflict (numero) do update set cliente_nome = excluded.cliente_nome, cpf = excluded.cpf,
-               telefone = excluded.telefone, data_retirada = excluded.data_retirada
+               telefone = excluded.telefone, data_retirada = excluded.data_retirada,
+               -- canal escolhido à mão pelo admin não é sobrescrito pela reimportação
+               canal = case when orders.canal = 'outro' then excluded.canal else orders.canal end
              returning id`,
-            [p.numero, p.cliente_nome, p.cpf, p.telefone, p.data_retirada, p.palavra_chave],
+            [p.numero, p.cliente_nome, p.cpf, p.telefone, p.data_retirada, p.palavra_chave, p.canal],
           )
           const id = rows[0].id
           await c.query('delete from order_items where order_id = $1', [id])

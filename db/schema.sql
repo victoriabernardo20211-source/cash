@@ -6,6 +6,7 @@ create extension if not exists pgcrypto;
 
 create type order_status as enum ('em_separacao', 'pronto', 'retirado');
 create type contato_status as enum ('pendente', 'em_atendimento', 'ja_liguei', 'nao_atendeu');
+create type canal_pedido as enum ('click_retire', '99food', 'ifood', 'outro');
 
 -- config (linha única) ---------------------------------------------------------
 create table config (
@@ -55,6 +56,7 @@ create table orders (
   data_retirada date,
   separacao_em  timestamptz,
   retirado_em   timestamptz,
+  canal         canal_pedido not null default 'outro',
   contato       contato_status not null default 'pendente',
   contato_por   uuid references admin_users (id) on delete set null,
   contato_em    timestamptz,
@@ -64,6 +66,7 @@ create table orders (
 
 create index orders_cpf_idx on orders (cpf);
 create index orders_status_idx on orders (status);
+create index orders_canal_idx on orders (canal);
 
 create table order_items (
   id         uuid primary key default gen_random_uuid(),
