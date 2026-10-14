@@ -263,7 +263,7 @@ export const ROTAS: Record<string, Rota> = {
   'importar.preparar': {
     acesso: 'equipe',
     fn: async (a) => {
-      const numeros = Array.isArray(a.numeros) ? a.numeros.map(String).slice(0, 2000) : []
+      const numeros = Array.isArray(a.numeros) ? [...new Set(a.numeros.map((n) => String(n).replace(/[^0-9A-Za-z-]/g, '').toUpperCase()))].slice(0, 2000) : []
       const formato = ((await db().query('select formato_chave from config where id = 1')).rows[0]?.formato_chave ?? 'palavra') as FormatoChave
       const existentes = new Map<string, string>(
         (await db().query('select numero, palavra_chave from orders where numero = any($1)', [numeros])).rows.map((r) => [r.numero, r.palavra_chave]),
@@ -284,7 +284,7 @@ export const ROTAS: Record<string, Rota> = {
         if (cpf.length !== 11) throw new ErroApi(400, `Pedido ${i + 1}: CPF inválido.`)
         if (!Array.isArray(p.itens) || p.itens.length === 0) throw new ErroApi(400, `Pedido ${i + 1}: sem produtos.`)
         return {
-          numero: texto(p.numero, 'numero', 40).trim(),
+          numero: texto(p.numero, 'numero', 40).replace(/[^0-9A-Za-z-]/g, '').toUpperCase(),
           cliente_nome: texto(p.cliente_nome, 'cliente_nome', 200).trim(),
           cpf,
           telefone: opcional(p.telefone, 'telefone', 40),
@@ -299,6 +299,9 @@ export const ROTAS: Record<string, Rota> = {
           })),
         }
       })
+      const numeros = pedidos.map((p) => p.numero)
+      if (numeros.some((n) => !n)) throw new ErroApi(400, 'Pedido sem número.')
+      if (new Set(numeros).size !== numeros.length) throw new ErroApi(400, 'Há pedidos repetidos no lote. Pré-visualize de novo.')
       return transacao(async (c) => {
         await c.query(`select set_config('app.usuario', $1, true)`, [ctx.usuario!.id])
         for (const p of pedidos) {

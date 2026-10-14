@@ -121,3 +121,13 @@ ${tipo}
     expect(parsePedidos(txt).map((p) => p.canal)).toEqual(Array(5).fill('click_retire'))
   })
 })
+
+describe('duplicados', () => {
+  it('marca pedido repetido no mesmo texto e normaliza o número', () => {
+    const um = (n: string) => `${n}\nAna, Silva\nCPF: 11122233396\nPRODUTOS:\nEANs\tProduto\tQuantidade\tUnidade\n789\tArroz\t1\tun\n`
+    const ps = parsePedidos(`#576932179\n${um('').trim()}\n#\nPedido: 576.932.179\nCliente: Ana Silva\nCPF: 11122233396\nProdutos:\n- Arroz | 1 un`)
+    expect(ps.map((p) => p.numero)).toEqual(['576932179', '576932179'])
+    expect(ps[0].erros).toEqual([])
+    expect(ps[1].erros).toEqual(['Pedido duplicado no texto (ignorado)'])
+  })
+})

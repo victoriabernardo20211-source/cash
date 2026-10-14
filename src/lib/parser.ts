@@ -139,7 +139,11 @@ function dividirBlocos(texto: string): { numero: string | null; linhas: string[]
   return blocos.filter((b) => b.numero || b.linhas.some((l) => l.trim()))
 }
 
+/** Número do pedido em forma canônica: sem "#", espaços ou pontuação. */
+export const normalizaNumero = (n: string) => n.replace(/[^0-9A-Za-z-]/g, '').toUpperCase()
+
 export function parsePedidos(texto: string): ParsedOrder[] {
+  const vistos = new Set<string>()
   return dividirBlocos(texto).map(({ numero, linhas }) => {
     const p: ParsedOrder = {
       numero: numero ?? '',
@@ -184,7 +188,10 @@ export function parsePedidos(texto: string): ParsedOrder[] {
     }
 
     if (!p.cliente_nome && nomeSolto) p.cliente_nome = normalizaNome(nomeSolto)
+    p.numero = normalizaNumero(p.numero)
     if (!p.numero) p.erros.push('Número do pedido ausente')
+    else if (vistos.has(p.numero)) p.erros.push('Pedido duplicado no texto (ignorado)')
+    else vistos.add(p.numero)
     if (!p.cliente_nome) p.erros.push('Nome do cliente ausente')
     if (p.cpf.length !== 11) p.erros.push(p.cpf ? `CPF inválido: ${p.cpf}` : 'CPF ausente')
     if (p.itens.length === 0) p.erros.push('Nenhum produto encontrado')
