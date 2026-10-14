@@ -27,6 +27,7 @@ export default function Configuracoes() {
       <div className="grid gap-6 xl:grid-cols-2">
         <div className="space-y-6">
           <DadosMercado />
+          <RetiradaAutomatica />
           <MinhaSenha />
         </div>
         <Usuarios />
@@ -69,6 +70,37 @@ function DadosMercado() {
         {msg && <Aviso tipo={msg.tipo}>{msg.texto}</Aviso>}
         <Botao type="submit" disabled={salvando}>{salvando ? 'Salvando…' : 'Salvar dados'}</Botao>
       </form>
+    </Cartao>
+  )
+}
+
+function RetiradaAutomatica() {
+  const { config, recarregar } = useConfig()
+  const [min, setMin] = useState(String(config.auto_retirada_min))
+  const [msg, setMsg] = useState<Msg>(null)
+
+  useEffect(() => setMin(String(config.auto_retirada_min)), [config.auto_retirada_min])
+
+  const salvar = async (e: FormEvent) => {
+    e.preventDefault()
+    try {
+      await api('config.salvar', { auto_retirada_min: Number(min) })
+      setMsg({ tipo: 'ok', texto: Number(min) ? `Pedidos prontos viram "Retirado" após ${min} min.` : 'Retirada automática desligada.' })
+      recarregar()
+    } catch (e) {
+      setMsg(erroMsg(e))
+    }
+  }
+
+  return (
+    <Cartao className="p-5">
+      <h2 className="mb-1 font-bold">Retirada automática</h2>
+      <p className="mb-4 text-sm text-secundario">Depois desse tempo como "Pronto", o pedido passa sozinho para "Retirado". Use 0 para desligar.</p>
+      <form onSubmit={salvar} className="flex flex-wrap items-end gap-3">
+        <Campo rotulo="Minutos" type="number" min={0} max={10080} required value={min} onChange={(e) => setMin(e.target.value)} className="w-32" />
+        <Botao type="submit" variante="secundario">Salvar</Botao>
+      </form>
+      {msg && <div className="mt-3"><Aviso tipo={msg.tipo}>{msg.texto}</Aviso></div>}
     </Cartao>
   )
 }

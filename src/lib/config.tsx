@@ -14,6 +14,7 @@ export const DEFAULT_CONFIG: AppConfig = {
   txt_rodape: 'Dúvidas? Fale com o balcão.',
   txt_erro_vazio: 'Nenhum pedido encontrado para este CPF.',
   formato_chave: 'palavra',
+  auto_retirada_min: 30,
   mercado_cnpj: null,
   mercado_endereco: null,
   mercado_telefone: null,

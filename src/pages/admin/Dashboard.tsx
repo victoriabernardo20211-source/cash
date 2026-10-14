@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { BadgeStatus, Botao, Cartao, IconeBusca, IconeCheck, IconeRelogio, IconeCaixa } from '../../components/ui'
+import { BadgeStatus, Botao, Cartao, IconeBusca, IconeCheck, IconeRelogio, IconeCaixa, SeletorContato, tempoAteAutoRetirada } from '../../components/ui'
 import { formatarData, mascaraCpf } from '../../lib/format'
 import { api } from '../../lib/api'
-import { STATUS_LABEL, type Order, type OrderStatus } from '../../lib/types'
+import { useConfig } from '../../lib/config'
+import { CONTATO_LABEL, STATUS_LABEL, type ContatoStatus, type Order, type OrderStatus } from '../../lib/types'
 import { Titulo } from './Layout'
 
 interface Resumo {
@@ -17,6 +18,10 @@ export default function Dashboard() {
   const busca = params.get('q') ?? ''
   const status = (params.get('status') ?? '') as OrderStatus | ''
   const pagina = Math.max(1, Number(params.get('p')) || 1)
+  const contato = (params.get('contato') ?? '') as ContatoStatus | ''
+  const { config } = useConfig()
+  const [tique, setTique] = useState(0)
+  const [salvandoContato, setSalvandoContato] = useState<string | null>(null)
 
   const [texto, setTexto] = useState(busca)
   const [resumo, setResumo] = useState<Resumo | null>(null)
@@ -37,13 +42,34 @@ export default function Dashboard() {
     return () => clearTimeout(t)
   }, [texto]) // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Atualiza sozinho a cada 20s: outros atendentes veem as tarjas de contato e a retirada automática.
   useEffect(() => {
-    api<Resumo>('dashboard.resumo').then(setResumo, () => {})
+    const t = setInterval(() => document.visibilityState === 'visible' && setTique((n) => n + 1), 20_000)
+    return () => clearInterval(t)
   }, [])
 
   useEffect(() => {
+    api<Resumo>('dashboard.resumo').then(setResumo, () => {})
+  }, [tique])
+
+  const mudarContato = async (p: Order, novo: ContatoStatus) => {
+    const anterior = { contato: p.contato, contato_por_nome: p.contato_por_nome }
+    const aplicar = (dados: Partial<Order>) => setPedidos((ls) => ls?.map((x) => (x.id === p.id ? { ...x, ...dados } : x)) ?? null)
+    aplicar({ contato: novo })
+    setSalvandoContato(p.id)
+    try {
+      aplicar(await api<Partial<Order>>('pedido.contato', { id: p.id, contato: novo }))
+    } catch (e) {
+      aplicar(anterior)
+      setErro((e as Error).message)
+    } finally {
+      setSalvandoContato(null)
+    }
+  }
+
+  useEffect(() => {
     let ativo = true
-    api<{ pedidos: Order[]; total: number; porPagina: number }>('pedidos.listar', { q: busca, status, pagina }).then(
+    api<{ pedidos: Order[]; total: number; porPagina: number }>('pedidos.listar', { q: busca, status, contato, pagina }).then(
       (r) => {
         if (!ativo) return
         setErro(null)
@@ -56,7 +82,7 @@ export default function Dashboard() {
     return () => {
       ativo = false
     }
-  }, [busca, status, pagina])
+  }, [busca, status, contato, pagina, tique])
 
   const paginas = Math.max(1, Math.ceil(total / porPagina))
 
@@ -100,6 +126,16 @@ export default function Dashboard() {
               <option key={v} value={v}>{r}</option>
             ))}
           </select>
+          <select
+            value={contato}
+            onChange={(e) => atualizar({ contato: e.target.value, p: '' })}
+            className="h-11 rounded-campo border border-borda bg-card px-3 text-sm outline-none focus:border-azul"
+          >
+            <option value="">Todos os contatos</option>
+            {Object.entries(CONTATO_LABEL).map(([v, r]) => (
+              <option key={v} value={v}>{r}</option>
+            ))}
+          </select>
         </div>
 
         {erro && <p className="p-4 text-sm text-vermelho">{erro}</p>}
@@ -122,6 +158,11 @@ export default function Dashboard() {
                     </div>
                     <p className="mt-1 text-xs text-secundario">Retirada {formatarData(p.data_retirada)}</p>
                   </Link>
+                  <div className="flex flex-wrap items-center gap-2 px-4 pb-3 text-xs text-secundario">
+                    <SeletorContato valor={p.contato} disabled={salvandoContato === p.id} onChange={(v) => mudarContato(p, v)} />
+                    {p.contato !== 'pendente' && p.contato_por_nome && <span>por {p.contato_por_nome}</span>}
+                    {p.status === 'pronto' && <span>{tempoAteAutoRetirada(p.pronto_em, config.auto_retirada_min)}</span>}
+                  </div>
                 </li>
               ))}
             </ul>
@@ -130,7 +171,7 @@ export default function Dashboard() {
               <table className="w-full text-left text-sm">
                 <thead className="text-xs tracking-wide text-secundario uppercase">
                   <tr className="border-b border-borda">
-                    {['Pedido', 'Cliente', 'CPF', 'Status', 'Retirada', ''].map((h) => (
+                    {['Pedido', 'Cliente', 'CPF', 'Status', 'Contato', 'Retirada', ''].map((h) => (
                       <th key={h} className="px-4 py-3 font-semibold">{h}</th>
                     ))}
                   </tr>
@@ -141,7 +182,18 @@ export default function Dashboard() {
                       <td className="px-4 py-3 font-semibold">#{p.numero}</td>
                       <td className="px-4 py-3">{p.cliente_nome}</td>
                       <td className="px-4 py-3 whitespace-nowrap text-secundario">{mascaraCpf(p.cpf)}</td>
-                      <td className="px-4 py-3"><BadgeStatus status={p.status} /></td>
+                      <td className="px-4 py-3">
+                        <BadgeStatus status={p.status} />
+                        {p.status === 'pronto' && (
+                          <span className="mt-1 block text-[11px] text-secundario">{tempoAteAutoRetirada(p.pronto_em, config.auto_retirada_min)}</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3">
+                        <SeletorContato valor={p.contato} disabled={salvandoContato === p.id} onChange={(v) => mudarContato(p, v)} />
+                        {p.contato !== 'pendente' && p.contato_por_nome && (
+                          <span className="mt-1 block text-[11px] text-secundario">por {p.contato_por_nome}</span>
+                        )}
+                      </td>
                       <td className="px-4 py-3 whitespace-nowrap">{formatarData(p.data_retirada)}</td>
                       <td className="px-4 py-3 text-right">
                         <Link to={`/admin/pedido/${p.id}`} className="font-semibold text-azul hover:underline">Ver</Link>

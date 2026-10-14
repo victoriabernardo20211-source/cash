@@ -1,4 +1,12 @@
 export type OrderStatus = 'em_separacao' | 'pronto' | 'retirado'
+export type ContatoStatus = 'pendente' | 'em_atendimento' | 'ja_liguei' | 'nao_atendeu'
+
+export const CONTATO_LABEL: Record<ContatoStatus, string> = {
+  pendente: 'Não contatado',
+  em_atendimento: 'Em atendimento',
+  ja_liguei: 'Já liguei',
+  nao_atendeu: 'Não atendeu',
+}
 
 export const STATUS_LABEL: Record<OrderStatus, string> = {
   em_separacao: 'Em separação',
@@ -18,6 +26,7 @@ export interface AppConfig {
   txt_rodape: string
   txt_erro_vazio: string
   formato_chave: 'palavra' | 'codigo'
+  auto_retirada_min: number
   mercado_cnpj: string | null
   mercado_endereco: string | null
   mercado_telefone: string | null
@@ -44,6 +53,10 @@ export interface Order {
   palavra_chave: string
   status: OrderStatus
   data_retirada: string | null
+  pronto_em: string | null
+  contato: ContatoStatus
+  contato_em: string | null
+  contato_por_nome: string | null
   created_at: string
   updated_at: string
 }

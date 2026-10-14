@@ -32,10 +32,11 @@ type Args = Record<string, unknown>
 type Rota = { acesso: 'publico' | 'equipe' | 'admin'; fn: (a: Args, ctx: Contexto) => Promise<unknown> }
 
 const STATUS = ['em_separacao', 'pronto', 'retirado'] as const
+const CONTATO = ['pendente', 'em_atendimento', 'ja_liguei', 'nao_atendeu'] as const
 const HEX = /^#[0-9a-f]{6}$/i
 const CAMPOS_CONFIG = [
   'app_name', 'logo_url', 'cor_azul', 'cor_vermelho', 'txt_saudacao', 'txt_instrucao', 'txt_botao', 'txt_rodape', 'txt_erro_vazio',
-  'formato_chave', 'mercado_cnpj', 'mercado_endereco', 'mercado_telefone', 'mercado_whatsapp', 'mercado_email', 'mercado_horario',
+  'formato_chave', 'auto_retirada_min', 'mercado_cnpj', 'mercado_endereco', 'mercado_telefone', 'mercado_whatsapp', 'mercado_email', 'mercado_horario',
 ] as const
 
 const texto = (v: unknown, nome: string, max = 500): string => {
@@ -55,6 +56,19 @@ export async function buscarUsuario(id: string): Promise<Usuario | null> {
   return rows[0] ?? null
 }
 
+/**
+ * Pedidos "pronto" há mais de `config.auto_retirada_min` minutos viram "retirado".
+ * Roda sob demanda (a cada consulta/listagem), sem precisar de agendador.
+ */
+async function aplicarRetiradaAutomatica(): Promise<void> {
+  await db().query(
+    `update orders o set status = 'retirado'
+       from config c
+      where c.id = 1 and c.auto_retirada_min > 0
+        and o.status = 'pronto' and o.pronto_em < now() - make_interval(mins => c.auto_retirada_min)`,
+  )
+}
+
 async function contarAdmins(): Promise<number> {
   const { rows } = await db().query(`select count(*)::int n from admin_users where perfil = 'admin'`)
   return rows[0].n
@@ -70,6 +84,7 @@ export const ROTAS: Record<string, Rota> = {
   'pedido.consultar': {
     acesso: 'publico',
     fn: async (a) => {
+      await aplicarRetiradaAutomatica()
       const cpf = digitos(a.cpf)
       if (cpf.length !== 11) return []
       // Palavra-chave só sai quando status = 'pronto'. Retirados há > 7 dias não aparecem.
@@ -122,43 +137,51 @@ export const ROTAS: Record<string, Rota> = {
   // ---------- Equipe: pedidos ----------
   'dashboard.resumo': {
     acesso: 'equipe',
-    fn: async () =>
-      (
+    fn: async () => {
+      await aplicarRetiradaAutomatica()
+      return (
         await db().query(`select
           count(*) filter (where status = 'em_separacao')::int em_separacao,
           count(*) filter (where status = 'pronto')::int pronto,
           count(*) filter (where status = 'retirado'
             and retirado_em >= (date_trunc('day', now() at time zone 'America/Sao_Paulo') at time zone 'America/Sao_Paulo'))::int retirados_hoje
           from orders`)
-      ).rows[0],
+      ).rows[0]
+    },
   },
 
   'pedidos.listar': {
     acesso: 'equipe',
     fn: async (a) => {
+      await aplicarRetiradaAutomatica()
       const porPagina = 20
       const pagina = Math.max(1, Number(a.pagina) || 1)
       const filtros: string[] = []
       const params: unknown[] = []
       if (typeof a.status === 'string' && (STATUS as readonly string[]).includes(a.status)) {
         params.push(a.status)
-        filtros.push(`status = $${params.length}`)
+        filtros.push(`o.status = $${params.length}`)
+      }
+      if (typeof a.contato === 'string' && (CONTATO as readonly string[]).includes(a.contato)) {
+        params.push(a.contato)
+        filtros.push(`o.contato = $${params.length}`)
       }
       const termo = typeof a.q === 'string' ? a.q.trim().slice(0, 100) : ''
       if (termo) {
         params.push(`%${termo}%`)
-        const ors = [`cliente_nome ilike $${params.length}`]
+        const ors = [`o.cliente_nome ilike $${params.length}`]
         const d = digitos(termo)
         if (d.length >= 3) {
           params.push(`%${d}%`)
-          ors.push(`cpf like $${params.length}`, `numero like $${params.length}`)
+          ors.push(`o.cpf like $${params.length}`, `o.numero like $${params.length}`)
         }
         filtros.push(`(${ors.join(' or ')})`)
       }
       const where = filtros.length ? `where ${filtros.join(' and ')}` : ''
       const { rows } = await db().query(
-        `select id, numero, cliente_nome, cpf, status, to_char(data_retirada, 'YYYY-MM-DD') data_retirada, count(*) over()::int total
-           from orders ${where} order by created_at desc limit ${porPagina} offset ${(pagina - 1) * porPagina}`,
+        `select o.id, o.numero, o.cliente_nome, o.cpf, o.status, to_char(o.data_retirada, 'YYYY-MM-DD') data_retirada,
+                o.pronto_em, o.contato, o.contato_em, coalesce(nullif(u.nome, ''), u.email) contato_por_nome, count(*) over()::int total
+           from orders o left join admin_users u on u.id = o.contato_por ${where} order by o.created_at desc limit ${porPagina} offset ${(pagina - 1) * porPagina}`,
         params,
       )
       return { pedidos: rows.map(({ total: _t, ...r }) => r), total: rows[0]?.total ?? 0, porPagina }
@@ -168,8 +191,14 @@ export const ROTAS: Record<string, Rota> = {
   'pedido.obter': {
     acesso: 'equipe',
     fn: async (a) => {
+      await aplicarRetiradaAutomatica()
       const id = uuid(a.id, 'Pedido não encontrado.')
-      const { rows } = await db().query(`select *, to_char(data_retirada, 'YYYY-MM-DD') data_retirada from orders where id = $1`, [id])
+      const { rows } = await db().query(
+        `select o.*, to_char(o.data_retirada, 'YYYY-MM-DD') data_retirada, coalesce(nullif(u.nome, ''), u.email) contato_por_nome,
+                (select auto_retirada_min from config where id = 1) auto_retirada_min
+           from orders o left join admin_users u on u.id = o.contato_por where o.id = $1`,
+        [id],
+      )
       if (!rows[0]) throw new ErroApi(404, 'Pedido não encontrado.')
       const [itens, eventos] = await Promise.all([
         db().query('select id, ean, nome, quantidade::float quantidade, unidade from order_items where order_id = $1 order by posicao', [id]),
@@ -194,6 +223,21 @@ export const ROTAS: Record<string, Rota> = {
         if (!r.rowCount) throw new ErroApi(404, 'Pedido não encontrado.')
         return true
       })
+    },
+  },
+
+  /** Tarja de contato com o cliente (quem ligou / está ligando). */
+  'pedido.contato': {
+    acesso: 'equipe',
+    fn: async (a, ctx) => {
+      const contato = texto(a.contato, 'contato', 20)
+      if (!(CONTATO as readonly string[]).includes(contato)) throw new ErroApi(400, 'Situação de contato inválida.')
+      const r = await db().query(
+        `update orders set contato = $2, contato_por = $3, contato_em = now() where id = $1`,
+        [uuid(a.id, 'Pedido não encontrado.'), contato, contato === 'pendente' ? null : ctx.usuario!.id],
+      )
+      if (!r.rowCount) throw new ErroApi(404, 'Pedido não encontrado.')
+      return { contato, contato_por_nome: contato === 'pendente' ? null : ctx.usuario!.nome || ctx.usuario!.email }
     },
   },
 
@@ -276,6 +320,13 @@ export const ROTAS: Record<string, Rota> = {
       const params: unknown[] = []
       for (const campo of CAMPOS_CONFIG) {
         if (!(campo in a)) continue
+        if (campo === 'auto_retirada_min') {
+          const n = Number(a[campo])
+          if (!Number.isInteger(n) || n < 0 || n > 10080) throw new ErroApi(400, 'Tempo de retirada automática inválido.')
+          params.push(n)
+          sets.push(`${campo} = $${params.length}`)
+          continue
+        }
         let v: string | null = opcional(a[campo], campo, campo === 'logo_url' ? 700_000 : 500)
         if ((campo === 'cor_azul' || campo === 'cor_vermelho') && !HEX.test(v ?? '')) throw new ErroApi(400, 'Cor inválida.')
         if (campo === 'formato_chave' && v !== 'palavra' && v !== 'codigo') throw new ErroApi(400, 'Formato inválido.')

@@ -22,7 +22,8 @@ npm test
 
 ## Banco (Neon)
 
-1. No SQL Editor do Neon, rode `db/schema.sql` (uma vez).
+1. No SQL Editor do Neon, rode `db/schema.sql` (uma vez). Bancos criados antes de uma atualização:
+   rode os arquivos novos de `db/migracoes/` em ordem.
 2. Edite e rode `db/criar-admin.sql` para criar o primeiro administrador.
 3. Os demais usuários são criados pelo painel em **/admin/configuracoes**.
 

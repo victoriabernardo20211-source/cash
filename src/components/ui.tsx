@@ -1,5 +1,5 @@
 import type { ButtonHTMLAttributes, InputHTMLAttributes, ReactNode, SVGProps } from 'react'
-import { STATUS_LABEL, type OrderStatus } from '../lib/types'
+import { CONTATO_LABEL, STATUS_LABEL, type ContatoStatus, type OrderStatus } from '../lib/types'
 
 const cx = (...c: (string | false | null | undefined)[]) => c.filter(Boolean).join(' ')
 
@@ -88,6 +88,54 @@ export function BadgeStatus({ status, className }: { status: OrderStatus; classN
       {STATUS_LABEL[status]}
     </span>
   )
+}
+
+const CONTATO_COR: Record<ContatoStatus, string> = {
+  pendente: 'border-borda bg-card text-secundario',
+  em_atendimento: 'border-amber-300 bg-amber-100 text-amber-800',
+  ja_liguei: 'border-pronto-fg/30 bg-pronto-bg text-pronto-fg',
+  nao_atendeu: 'border-vermelho/30 bg-vermelho/10 text-vermelho',
+}
+
+/** Tarja de contato selecionável: o atendente marca se está ligando / já ligou. */
+export function SeletorContato({
+  valor,
+  onChange,
+  disabled,
+  className,
+}: {
+  valor: ContatoStatus
+  onChange: (v: ContatoStatus) => void
+  disabled?: boolean
+  className?: string
+}) {
+  return (
+    <span className={cx('relative inline-flex', className)}>
+      {valor === 'em_atendimento' && <span className="absolute -top-0.5 -right-0.5 size-2 animate-ping rounded-full bg-amber-500" />}
+      <select
+        value={valor}
+        disabled={disabled}
+        onChange={(e) => onChange(e.target.value as ContatoStatus)}
+        aria-label="Situação do contato com o cliente"
+        className={cx(
+          'cursor-pointer appearance-none rounded-full border py-1 pr-6 pl-2.5 text-xs font-bold uppercase outline-none focus:ring-2 focus:ring-azul/30 disabled:cursor-wait disabled:opacity-60',
+          "bg-[length:12px] bg-[right_6px_center] bg-no-repeat bg-[url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='3'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E\")]",
+          CONTATO_COR[valor],
+        )}
+      >
+        {(Object.keys(CONTATO_LABEL) as ContatoStatus[]).map((c) => (
+          <option key={c} value={c}>{CONTATO_LABEL[c]}</option>
+        ))}
+      </select>
+    </span>
+  )
+}
+
+/** "faltam 12 min" para a retirada automática de um pedido pronto. */
+export function tempoAteAutoRetirada(prontoEm: string | null, minutos: number, agora = Date.now()): string | null {
+  if (!prontoEm || minutos <= 0) return null
+  const resta = Math.ceil((new Date(prontoEm).getTime() + minutos * 60_000 - agora) / 60_000)
+  return resta > 0 ? `retirada automática em ${resta} min` : 'retirando automaticamente…'
 }
 
 export function Marca({ nome, logo, claro = false }: { nome: string; logo: string | null; claro?: boolean }) {
