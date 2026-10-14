@@ -26,7 +26,7 @@ export interface AppConfig {
   txt_rodape: string
   txt_erro_vazio: string
   formato_chave: 'palavra' | 'codigo'
-  auto_retirada_min: number
+  auto_pronto_min: number
   mercado_cnpj: string | null
   mercado_endereco: string | null
   mercado_telefone: string | null
@@ -53,7 +53,7 @@ export interface Order {
   palavra_chave: string
   status: OrderStatus
   data_retirada: string | null
-  pronto_em: string | null
+  separacao_em: string | null
   contato: ContatoStatus
   contato_em: string | null
   contato_por_nome: string | null

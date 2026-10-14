@@ -1,4 +1,4 @@
--- Click & Retire — tarja de contato e retirada automática.
+-- Click & Retire — tarja de contato e "pronto para retirada" automático.
 -- Para bancos JÁ criados: rode este arquivo uma vez no SQL Editor do Neon.
 -- (Instalações novas já recebem tudo pelo db/schema.sql.)
 
@@ -8,13 +8,14 @@ alter table orders
   add column contato     contato_status not null default 'pendente',
   add column contato_por uuid references admin_users (id) on delete set null,
   add column contato_em  timestamptz,
-  add column pronto_em   timestamptz;
+  add column separacao_em timestamptz;
 
--- Pedidos que já estão prontos contam a partir de agora.
-update orders set pronto_em = now() where status = 'pronto';
+-- Pedidos que já estão em separação começam a contar a partir de agora
+-- (senão todos os antigos ficariam prontos de uma vez).
+update orders set separacao_em = now() where status = 'em_separacao';
 
--- Minutos até um pedido "pronto" virar "retirado" sozinho (0 = desligado).
-alter table config add column auto_retirada_min int not null default 30 check (auto_retirada_min between 0 and 10080);
+-- Minutos em separação até o pedido virar "pronto" sozinho (0 = desligado).
+alter table config add column auto_pronto_min int not null default 30 check (auto_pronto_min between 0 and 10080);
 
 create or replace function tg_orders_before() returns trigger language plpgsql as $$
 begin
@@ -24,10 +25,9 @@ begin
   elsif new.status <> 'retirado' then
     new.retirado_em := null;
   end if;
-  if new.status = 'pronto' and (tg_op = 'INSERT' or old.status <> 'pronto') then
-    new.pronto_em := now();
-  elsif new.status = 'em_separacao' then
-    new.pronto_em := null;
+  -- Início da separação: base do "pronto automático".
+  if new.status = 'em_separacao' and (tg_op = 'INSERT' or old.status <> 'em_separacao') then
+    new.separacao_em := now();
   end if;
   return new;
 end $$;

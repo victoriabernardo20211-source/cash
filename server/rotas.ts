@@ -36,7 +36,7 @@ const CONTATO = ['pendente', 'em_atendimento', 'ja_liguei', 'nao_atendeu'] as co
 const HEX = /^#[0-9a-f]{6}$/i
 const CAMPOS_CONFIG = [
   'app_name', 'logo_url', 'cor_azul', 'cor_vermelho', 'txt_saudacao', 'txt_instrucao', 'txt_botao', 'txt_rodape', 'txt_erro_vazio',
-  'formato_chave', 'auto_retirada_min', 'mercado_cnpj', 'mercado_endereco', 'mercado_telefone', 'mercado_whatsapp', 'mercado_email', 'mercado_horario',
+  'formato_chave', 'auto_pronto_min', 'mercado_cnpj', 'mercado_endereco', 'mercado_telefone', 'mercado_whatsapp', 'mercado_email', 'mercado_horario',
 ] as const
 
 const texto = (v: unknown, nome: string, max = 500): string => {
@@ -57,15 +57,16 @@ export async function buscarUsuario(id: string): Promise<Usuario | null> {
 }
 
 /**
- * Pedidos "pronto" há mais de `config.auto_retirada_min` minutos viram "retirado".
- * Roda sob demanda (a cada consulta/listagem), sem precisar de agendador.
+ * Pedidos "em separação" há mais de `config.auto_pronto_min` minutos viram
+ * "pronto" (o cliente passa a ver a palavra-chave). Roda sob demanda, a cada
+ * consulta/listagem, sem precisar de agendador.
  */
-async function aplicarRetiradaAutomatica(): Promise<void> {
+async function aplicarProntoAutomatico(): Promise<void> {
   await db().query(
-    `update orders o set status = 'retirado'
+    `update orders o set status = 'pronto'
        from config c
-      where c.id = 1 and c.auto_retirada_min > 0
-        and o.status = 'pronto' and o.pronto_em < now() - make_interval(mins => c.auto_retirada_min)`,
+      where c.id = 1 and c.auto_pronto_min > 0
+        and o.status = 'em_separacao' and o.separacao_em < now() - make_interval(mins => c.auto_pronto_min)`,
   )
 }
 
@@ -84,7 +85,7 @@ export const ROTAS: Record<string, Rota> = {
   'pedido.consultar': {
     acesso: 'publico',
     fn: async (a) => {
-      await aplicarRetiradaAutomatica()
+      await aplicarProntoAutomatico()
       const cpf = digitos(a.cpf)
       if (cpf.length !== 11) return []
       // Palavra-chave só sai quando status = 'pronto'. Retirados há > 7 dias não aparecem.
@@ -138,7 +139,7 @@ export const ROTAS: Record<string, Rota> = {
   'dashboard.resumo': {
     acesso: 'equipe',
     fn: async () => {
-      await aplicarRetiradaAutomatica()
+      await aplicarProntoAutomatico()
       return (
         await db().query(`select
           count(*) filter (where status = 'em_separacao')::int em_separacao,
@@ -153,7 +154,7 @@ export const ROTAS: Record<string, Rota> = {
   'pedidos.listar': {
     acesso: 'equipe',
     fn: async (a) => {
-      await aplicarRetiradaAutomatica()
+      await aplicarProntoAutomatico()
       const porPagina = 20
       const pagina = Math.max(1, Number(a.pagina) || 1)
       const filtros: string[] = []
@@ -180,7 +181,7 @@ export const ROTAS: Record<string, Rota> = {
       const where = filtros.length ? `where ${filtros.join(' and ')}` : ''
       const { rows } = await db().query(
         `select o.id, o.numero, o.cliente_nome, o.cpf, o.status, to_char(o.data_retirada, 'YYYY-MM-DD') data_retirada,
-                o.pronto_em, o.contato, o.contato_em, coalesce(nullif(u.nome, ''), u.email) contato_por_nome, count(*) over()::int total
+                o.separacao_em, o.contato, o.contato_em, coalesce(nullif(u.nome, ''), u.email) contato_por_nome, count(*) over()::int total
            from orders o left join admin_users u on u.id = o.contato_por ${where} order by o.created_at desc limit ${porPagina} offset ${(pagina - 1) * porPagina}`,
         params,
       )
@@ -191,11 +192,11 @@ export const ROTAS: Record<string, Rota> = {
   'pedido.obter': {
     acesso: 'equipe',
     fn: async (a) => {
-      await aplicarRetiradaAutomatica()
+      await aplicarProntoAutomatico()
       const id = uuid(a.id, 'Pedido não encontrado.')
       const { rows } = await db().query(
         `select o.*, to_char(o.data_retirada, 'YYYY-MM-DD') data_retirada, coalesce(nullif(u.nome, ''), u.email) contato_por_nome,
-                (select auto_retirada_min from config where id = 1) auto_retirada_min
+                (select auto_pronto_min from config where id = 1) auto_pronto_min
            from orders o left join admin_users u on u.id = o.contato_por where o.id = $1`,
         [id],
       )
@@ -320,9 +321,9 @@ export const ROTAS: Record<string, Rota> = {
       const params: unknown[] = []
       for (const campo of CAMPOS_CONFIG) {
         if (!(campo in a)) continue
-        if (campo === 'auto_retirada_min') {
+        if (campo === 'auto_pronto_min') {
           const n = Number(a[campo])
-          if (!Number.isInteger(n) || n < 0 || n > 10080) throw new ErroApi(400, 'Tempo de retirada automática inválido.')
+          if (!Number.isInteger(n) || n < 0 || n > 10080) throw new ErroApi(400, 'Tempo do pronto automático inválido.')
           params.push(n)
           sets.push(`${campo} = $${params.length}`)
           continue

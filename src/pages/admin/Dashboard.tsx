@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { BadgeStatus, Botao, Cartao, IconeBusca, IconeCheck, IconeRelogio, IconeCaixa, SeletorContato, tempoAteAutoRetirada } from '../../components/ui'
+import { BadgeStatus, Botao, Cartao, IconeBusca, IconeCheck, IconeRelogio, IconeCaixa, SeletorContato, tempoAteAutoPronto } from '../../components/ui'
 import { formatarData, mascaraCpf } from '../../lib/format'
 import { api } from '../../lib/api'
 import { useConfig } from '../../lib/config'
@@ -161,7 +161,7 @@ export default function Dashboard() {
                   <div className="flex flex-wrap items-center gap-2 px-4 pb-3 text-xs text-secundario">
                     <SeletorContato valor={p.contato} disabled={salvandoContato === p.id} onChange={(v) => mudarContato(p, v)} />
                     {p.contato !== 'pendente' && p.contato_por_nome && <span>por {p.contato_por_nome}</span>}
-                    {p.status === 'pronto' && <span>{tempoAteAutoRetirada(p.pronto_em, config.auto_retirada_min)}</span>}
+                    {p.status === 'em_separacao' && <span>{tempoAteAutoPronto(p.separacao_em, config.auto_pronto_min)}</span>}
                   </div>
                 </li>
               ))}
@@ -184,8 +184,8 @@ export default function Dashboard() {
                       <td className="px-4 py-3 whitespace-nowrap text-secundario">{mascaraCpf(p.cpf)}</td>
                       <td className="px-4 py-3">
                         <BadgeStatus status={p.status} />
-                        {p.status === 'pronto' && (
-                          <span className="mt-1 block text-[11px] text-secundario">{tempoAteAutoRetirada(p.pronto_em, config.auto_retirada_min)}</span>
+                        {p.status === 'em_separacao' && (
+                          <span className="mt-1 block text-[11px] text-secundario">{tempoAteAutoPronto(p.separacao_em, config.auto_pronto_min)}</span>
                         )}
                       </td>
                       <td className="px-4 py-3">

@@ -131,11 +131,11 @@ export function SeletorContato({
   )
 }
 
-/** "faltam 12 min" para a retirada automática de um pedido pronto. */
-export function tempoAteAutoRetirada(prontoEm: string | null, minutos: number, agora = Date.now()): string | null {
-  if (!prontoEm || minutos <= 0) return null
-  const resta = Math.ceil((new Date(prontoEm).getTime() + minutos * 60_000 - agora) / 60_000)
-  return resta > 0 ? `retirada automática em ${resta} min` : 'retirando automaticamente…'
+/** "pronto em 12 min": contagem até o pedido em separação virar pronto sozinho. */
+export function tempoAteAutoPronto(separacaoEm: string | null, minutos: number, agora = Date.now()): string | null {
+  if (!separacaoEm || minutos <= 0) return null
+  const resta = Math.ceil((new Date(separacaoEm).getTime() + minutos * 60_000 - agora) / 60_000)
+  return resta > 0 ? `pronto automático em ${resta} min` : 'ficando pronto…'
 }
 
 export function Marca({ nome, logo, claro = false }: { nome: string; logo: string | null; claro?: boolean }) {

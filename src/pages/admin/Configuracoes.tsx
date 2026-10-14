@@ -27,7 +27,7 @@ export default function Configuracoes() {
       <div className="grid gap-6 xl:grid-cols-2">
         <div className="space-y-6">
           <DadosMercado />
-          <RetiradaAutomatica />
+          <ProntoAutomatico />
           <MinhaSenha />
         </div>
         <Usuarios />
@@ -74,18 +74,18 @@ function DadosMercado() {
   )
 }
 
-function RetiradaAutomatica() {
+function ProntoAutomatico() {
   const { config, recarregar } = useConfig()
-  const [min, setMin] = useState(String(config.auto_retirada_min))
+  const [min, setMin] = useState(String(config.auto_pronto_min))
   const [msg, setMsg] = useState<Msg>(null)
 
-  useEffect(() => setMin(String(config.auto_retirada_min)), [config.auto_retirada_min])
+  useEffect(() => setMin(String(config.auto_pronto_min)), [config.auto_pronto_min])
 
   const salvar = async (e: FormEvent) => {
     e.preventDefault()
     try {
-      await api('config.salvar', { auto_retirada_min: Number(min) })
-      setMsg({ tipo: 'ok', texto: Number(min) ? `Pedidos prontos viram "Retirado" após ${min} min.` : 'Retirada automática desligada.' })
+      await api('config.salvar', { auto_pronto_min: Number(min) })
+      setMsg({ tipo: 'ok', texto: Number(min) ? `Pedidos em separação ficam "Pronto para retirada" após ${min} min.` : 'Pronto automático desligado.' })
       recarregar()
     } catch (e) {
       setMsg(erroMsg(e))
@@ -94,8 +94,8 @@ function RetiradaAutomatica() {
 
   return (
     <Cartao className="p-5">
-      <h2 className="mb-1 font-bold">Retirada automática</h2>
-      <p className="mb-4 text-sm text-secundario">Depois desse tempo como "Pronto", o pedido passa sozinho para "Retirado". Use 0 para desligar.</p>
+      <h2 className="mb-1 font-bold">Pronto automático</h2>
+      <p className="mb-4 text-sm text-secundario">Depois desse tempo em separação, o pedido passa sozinho para "Pronto para retirada" e o cliente já vê a palavra-chave. Use 0 para desligar.</p>
       <form onSubmit={salvar} className="flex flex-wrap items-end gap-3">
         <Campo rotulo="Minutos" type="number" min={0} max={10080} required value={min} onChange={(e) => setMin(e.target.value)} className="w-32" />
         <Botao type="submit" variante="secundario">Salvar</Botao>
